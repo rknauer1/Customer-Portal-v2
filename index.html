@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Field Service Portal</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Custom Styles -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        /* Simple spinner for loading states */
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: #09f;
+            animation: spin 1s ease infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* Hide scrollbar for modal */
+        .modal-open {
+            overflow: hidden;
+        }
+        /* Accordion styles */
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+    <!-- Main Application Container -->
+    <div id="app" class="min-h-screen">
+
+        <!-- Loading Screen -->
+        <div id="loading-screen" class="fixed inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50">
+            <div class="text-center">
+                <div class="spinner mx-auto"></div>
+                <p class="mt-4 text-lg font-medium text-gray-600">Loading Application...</p>
+            </div>
+        </div>
+
+        <!-- Login View -->
+        <div id="login-view" class="hidden min-h-screen flex items-center justify-center bg-gray-100 p-4">
+            <div class="w-full max-w-md bg-white p-8 rounded-xl shadow-lg">
+                <h2 class="text-3xl font-bold text-center text-gray-800 mb-2">Admin Login</h2>
+                <p class="text-center text-gray-500 mb-8">Access the job management dashboard.</p>
+                <form id="login-form">
+                    <div class="mb-4">
+                        <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                        <input type="email" id="email" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                    </div>
+                    <div class="mb-6">
+                        <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                        <input type="password" id="password" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                    </div>
+                    <button type="submit" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-300">
+                        Sign In
+                    </button>
+                </form>
+                <p id="login-error" class="text-red-500 text-sm mt-4 text-center"></p>
+            </div>
+        </div>
+
+        <!-- Admin Dashboard View -->
+        <div id="admin-view" class="hidden">
+            <header class="bg-white shadow-md sticky top-0 z-40">
+                <nav class="container mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center py-4">
+                    <h1 class="text-2xl font-bold text-blue-600">Admin Dashboard</h1>
+                    <button id="logout-button" class="bg-red-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-600 transition">Logout</button>
+                </nav>
+            </header>
+            <main class="container mx-auto p-4 sm:p-6 lg:p-8">
+                <!-- Add Customer Section -->
+                <div class="bg-white p-6 rounded-xl shadow-lg mb-8">
+                    <h2 class="text-xl font-bold mb-4">Add New Customer</h2>
+                    <form id="add-customer-form" class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                        <div class="md:col-span-1">
+                            <label for="customer-name" class="block text-sm font-medium text-gray-700">Customer Name</label>
+                            <input type="text" id="customer-name" required class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div class="md:col-span-1">
+                            <label for="customer-location" class="block text-sm font-medium text-gray-700">Location Address</label>
+                            <input type="text" id="customer-location" required class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div class="md:col-span-1">
+                            <button type="submit" class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition">Add Customer</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Customer List -->
+                <div class="bg-white p-6 rounded-xl shadow-lg">
+                    <h2 class="text-xl font-bold mb-4">Customer List</h2>
+                    <div id="customer-list" class="space-y-4">
+                        <!-- Customer items will be injected here by JS -->
+                        <p class="text-gray-500">No customers found. Add one above to get started.</p>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <!-- Customer Portal View -->
+        <div id="customer-portal-view" class="hidden">
+            <header class="bg-white shadow-md">
+                <div class="container mx-auto p-4 sm:p-6 lg:p-8">
+                    <h1 id="portal-customer-name" class="text-3xl font-bold text-gray-800"></h1>
+                    <p id="portal-customer-location" class="text-lg text-gray-500 mt-1"></p>
+                </div>
+            </header>
+            <main class="container mx-auto p-4 sm:p-6 lg:p-8">
+                <h2 class="text-2xl font-bold mb-6">Job History</h2>
+                <div id="job-list" class="space-y-6">
+                    <!-- Job items will be injected here by JS -->
+                    <p class="text-gray-500">No jobs found for this customer.</p>
+                </div>
+            </main>
+        </div>
+        
+        <!-- Footer -->
+        <footer class="text-center py-6 text-gray-500 text-sm">
+            <p>Field Service Portal &copy; 2025. All Rights Reserved.</p>
+        </footer>
+
+    </div>
+
+    <!-- Modals -->
+    <div id="modal-container">
+        <!-- Add Job Modal -->
+        <div id="add-job-modal" class="hidden fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-50 p-4">
+            <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-full overflow-y-auto">
+                <form id="add-job-form">
+                    <div class="p-6 border-b">
+                        <h3 class="text-2xl font-bold">Add New Job for <span id="add-job-customer-name" class="text-blue-600"></span></h3>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        <input type="hidden" id="add-job-customer-id">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label for="job-date" class="block text-sm font-medium text-gray-700">Service Date</label>
+                                <input type="date" id="job-date" required class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg">
+                            </div>
+                            <div>
+                                <label for="job-frequency" class="block text-sm font-medium text-gray-700">Service Frequency</label>
+                                <select id="job-frequency" required class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg bg-white">
+                                    <option>One-Time</option>
+                                    <option>Weekly</option>
+                                    <option>Bi-Weekly</option>
+                                    <option>Monthly</option>
+                                    <option>Quarterly</option>
+                                    <option>Annually</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label for="job-scope" class="block text-sm font-medium text-gray-700">Scope of Job</label>
+                            <input type="text" id="job-scope" required placeholder="e.g., Quarterly Window Cleaning - Exterior" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label for="job-notes" class="block text-sm font-medium text-gray-700">Completion Notes</label>
+                            <textarea id="job-notes" rows="4" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Before Shots (Images)</label>
+                            <input type="file" id="before-images" multiple accept="image/*" class="mt-1 w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">After Shots (Images)</label>
+                            <input type="file" id="after-images" multiple accept="image/*" class="mt-1 w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Service Report (PDF, DOCX, etc.)</label>
+                            <input type="file" id="service-report" class="mt-1 w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100">
+                        </div>
+                    </div>
+                    <div class="p-6 bg-gray-50 border-t flex justify-end space-x-3">
+                        <button type="button" id="cancel-add-job" class="bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300">Cancel</button>
+                        <button type="submit" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 flex items-center">
+                            <span id="add-job-button-text">Add Job</span>
+                            <div id="add-job-spinner" class="hidden spinner" style="width:20px; height:20px; border-width: 2px; margin-left: 8px;"></div>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Portal Link Modal -->
+        <div id="portal-link-modal" class="hidden fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-50 p-4">
+            <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg text-center p-8">
+                <h3 class="text-2xl font-bold mb-2">Customer Portal Link</h3>
+                <p class="text-gray-600 mb-6">Share this unique link with your customer.</p>
+                <div class="relative bg-gray-100 p-4 rounded-lg border border-gray-200">
+                    <input id="portal-link-input" type="text" readonly class="w-full bg-transparent text-gray-700 outline-none pr-10">
+                    <button id="copy-link-button" class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-blue-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                    </button>
+                </div>
+                <p id="copy-success-message" class="text-green-600 font-medium mt-3 h-5"></p>
+                <button id="close-link-modal" class="mt-6 bg-blue-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-700">Done</button>
+            </div>
+        </div>
+
+        <!-- Image Lightbox Modal -->
+        <div id="lightbox-modal" class="hidden fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4">
+            <button id="close-lightbox" class="absolute top-4 right-4 text-white text-5xl font-bold">&times;</button>
+            <img id="lightbox-image" src="" class="max-w-full max-h-full rounded-lg">
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        // --- Firebase Configuration ---
+        // This is now configured with your project's specific keys.
+        const firebaseConfig = typeof __firebase_config !== 'undefined' 
+            ? JSON.parse(__firebase_config) 
+            : {
+                apiKey: "AIzaSyB_fW_t1o7BwFgnTaVHFCw8SKxUQbRauvY",
+                authDomain: "customer-portal-v2-ba087.firebaseapp.com",
+                projectId: "customer-portal-v2-ba087",
+                storageBucket: "customer-portal-v2-ba087.appspot.com",
+                messagingSenderId: "692584032301",
+                appId: "1:692584032301:web:b89802384d48e2d29970a4"
+            };
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+        // --- Firebase Imports ---
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { 
+            getAuth, 
+            signInWithEmailAndPassword, 
+            onAuthStateChanged, 
+            signOut,
+            signInWithCustomToken,
+            signInAnonymously
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { 
+            getFirestore, 
+            collection, 
+            addDoc, 
+            query, 
+            where, 
+            getDocs, 
+            onSnapshot,
+            doc,
+            setDoc,
+            Timestamp
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { 
+            getStorage, 
+            ref, 
+            uploadBytes, 
+            getDownloadURL 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
+
+        // --- Firebase Initialization ---
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const storage = getStorage(app);
+
+        // --- DOM Element References ---
+        const loadingScreen = document.getElementById('loading-screen');
+        const loginView = document.getElementById('login-view');
+        const adminView = document.getElementById('admin-view');
+        const customerPortalView = document.getElementById('customer-portal-view');
+        
+        let currentUserId = null;
+        let customerUnsubscribe = null;
+
+        // --- Main Application Logic ---
+        async function main() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const portalId = urlParams.get('id');
+
+            if (portalId) {
+                // If a portal ID is in the URL, show the customer portal
+                await renderCustomerPortal(portalId);
+            } else {
+                // Otherwise, handle admin authentication
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        currentUserId = user.uid;
+                        showView('admin');
+                        listenForCustomers();
+                    } else {
+                        // If __initial_auth_token is available, use it. Otherwise, show login.
+                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                            try {
+                                await signInWithCustomToken(auth, __initial_auth_token);
+                                // The onAuthStateChanged listener will re-trigger and handle the rest
+                            } catch (error) {
+                                console.error("Custom token sign-in failed, showing manual login:", error);
+                                showView('login');
+                            }
+                        } else {
+                           showView('login');
+                        }
+                    }
+                });
+            }
+        }
+
+        // --- View Management ---
+        function showView(viewName) {
+            loginView.classList.add('hidden');
+            adminView.classList.add('hidden');
+            customerPortalView.classList.add('hidden');
+            
+            if (viewName === 'login') loginView.classList.remove('hidden');
+            else if (viewName === 'admin') adminView.classList.remove('hidden');
+            else if (viewName === 'portal') customerPortalView.classList.remove('hidden');
+
+            loadingScreen.classList.add('hidden');
+        }
+
+        // --- Authentication Logic ---
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const errorP = document.getElementById('login-error');
+            errorP.textContent = '';
+            
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+                // onAuthStateChanged will handle showing the admin view
+            } catch (error) {
+                console.error("Login Error:", error);
+                errorP.textContent = "Invalid email or password. Please try again.";
+            }
+        });
+
+        document.getElementById('logout-button').addEventListener('click', async () => {
+            if (customerUnsubscribe) customerUnsubscribe();
+            await signOut(auth);
+            currentUserId = null;
+            showView('login');
+        });
+
+        // --- Admin: Customer Management ---
+        document.getElementById('add-customer-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('customer-name').value;
+            const location = document.getElementById('customer-location').value;
+            
+            try {
+                const customersCollection = collection(db, 'customers');
+                await addDoc(customersCollection, {
+                    name,
+                    location,
+                    uniqueAccessId: crypto.randomUUID(),
+                    ownerId: currentUserId // Link customer to the admin user
+                });
+                e.target.reset(); // Clear the form
+            } catch (error) {
+                console.error("Error adding customer: ", error);
+                alert("Failed to add customer. Please try again.");
+            }
+        });
+
+        function listenForCustomers() {
+            if (customerUnsubscribe) customerUnsubscribe(); // Prevent multiple listeners
+
+            const customersCollection = collection(db, 'customers');
+            const q = query(customersCollection, where("ownerId", "==", currentUserId));
+            
+            customerUnsubscribe = onSnapshot(q, (querySnapshot) => {
+                const customerList = document.getElementById('customer-list');
+                if (querySnapshot.empty) {
+                    customerList.innerHTML = '<p class="text-gray-500">No customers found. Add one above to get started.</p>';
+                    return;
+                }
+                
+                customerList.innerHTML = ''; // Clear existing list
+                querySnapshot.forEach((doc) => {
+                    const customer = { id: doc.id, ...doc.data() };
+                    const customerEl = document.createElement('div');
+                    customerEl.className = 'flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 border rounded-lg hover:bg-gray-50';
+                    customerEl.innerHTML = `
+                        <div>
+                            <p class="font-semibold text-lg">${customer.name}</p>
+                            <p class="text-gray-600">${customer.location}</p>
+                        </div>
+                        <div class="flex space-x-2 mt-3 sm:mt-0">
+                            <button data-id="${customer.id}" data-name="${customer.name}" class="add-job-btn bg-green-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-green-600 text-sm">Add Job</button>
+                            <button data-id="${customer.uniqueAccessId}" class="view-link-btn bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-600 text-sm">Portal Link</button>
+                        </div>
+                    `;
+                    customerList.appendChild(customerEl);
+                });
+            }, (error) => {
+                console.error("Error listening for customers:", error);
+                customerList.innerHTML = '<p class="text-red-500">Could not load customers. Please refresh.</p>';
+            });
+        }
+
+        // --- Admin: Job Management ---
+        document.getElementById('customer-list').addEventListener('click', (e) => {
+            if (e.target.classList.contains('add-job-btn')) {
+                const customerId = e.target.dataset.id;
+                const customerName = e.target.dataset.name;
+                openAddJobModal(customerId, customerName);
+            }
+            if (e.target.classList.contains('view-link-btn')) {
+                const uniqueAccessId = e.target.dataset.id;
+                openPortalLinkModal(uniqueAccessId);
+            }
+        });
+        
+        function openAddJobModal(customerId, customerName) {
+            document.getElementById('add-job-form').reset();
+            document.getElementById('add-job-customer-id').value = customerId;
+            document.getElementById('add-job-customer-name').textContent = customerName;
+            document.getElementById('add-job-modal').classList.remove('hidden');
+            document.body.classList.add('modal-open');
+        }
+
+        document.getElementById('cancel-add-job').addEventListener('click', () => {
+            document.getElementById('add-job-modal').classList.add('hidden');
+            document.body.classList.remove('modal-open');
+        });
+
+        document.getElementById('add-job-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const buttonText = document.getElementById('add-job-button-text');
+            const spinner = document.getElementById('add-job-spinner');
+            buttonText.classList.add('hidden');
+            spinner.classList.remove('hidden');
+
+            const customerId = document.getElementById('add-job-customer-id').value;
+            const beforeImagesFiles = document.getElementById('before-images').files;
+            const afterImagesFiles = document.getElementById('after-images').files;
+            const serviceReportFile = document.getElementById('service-report').files[0];
+
+            try {
+                // 1. Upload files and get URLs
+                const beforeImages = await uploadMultipleFiles(beforeImagesFiles, `jobs/${customerId}/before`);
+                const afterImages = await uploadMultipleFiles(afterImagesFiles, `jobs/${customerId}/after`);
+                let serviceReport = '';
+                if (serviceReportFile) {
+                    serviceReport = await uploadFile(serviceReportFile, `jobs/${customerId}/reports`);
+                }
+
+                // 2. Create job document in Firestore
+                const jobsCollection = collection(db, 'jobs');
+                await addDoc(jobsCollection, {
+                    customerId,
+                    serviceDate: Timestamp.fromDate(new Date(document.getElementById('job-date').value)),
+                    frequency: document.getElementById('job-frequency').value,
+                    scope: document.getElementById('job-scope').value,
+                    notes: document.getElementById('job-notes').value,
+                    beforeImages,
+                    afterImages,
+                    serviceReport,
+                    createdAt: Timestamp.now()
+                });
+                
+                // 3. Close modal and reset state
+                document.getElementById('add-job-modal').classList.add('hidden');
+                document.body.classList.remove('modal-open');
+
+            } catch (error) {
+                console.error("Error adding job:", error);
+                alert("Failed to add job. Check console for details.");
+            } finally {
+                buttonText.classList.remove('hidden');
+                spinner.classList.add('hidden');
+            }
+        });
+
+        // --- File Upload Helpers ---
+        async function uploadFile(file, path) {
+            if (!file) return '';
+            const storageRef = ref(storage, `${path}/${Date.now()}_${file.name}`);
+            await uploadBytes(storageRef, file);
+            return await getDownloadURL(storageRef);
+        }
+        
+        async function uploadMultipleFiles(fileList, path) {
+            const uploadPromises = Array.from(fileList).map(file => uploadFile(file, path));
+            return await Promise.all(uploadPromises);
+        }
+
+        // --- Portal Link Modal Logic ---
+        function openPortalLinkModal(uniqueAccessId) {
+            const link = `${window.location.origin}${window.location.pathname}?id=${uniqueAccessId}`;
+            document.getElementById('portal-link-input').value = link;
+            document.getElementById('portal-link-modal').classList.remove('hidden');
+            document.body.classList.add('modal-open');
+        }
+
+        document.getElementById('close-link-modal').addEventListener('click', () => {
+            document.getElementById('portal-link-modal').classList.add('hidden');
+            document.getElementById('copy-success-message').textContent = '';
+            document.body.classList.remove('modal-open');
+        });
+
+        document.getElementById('copy-link-button').addEventListener('click', () => {
+            const input = document.getElementById('portal-link-input');
+            input.select();
+            document.execCommand('copy');
+            const msg = document.getElementById('copy-success-message');
+            msg.textContent = 'Copied to clipboard!';
+            setTimeout(() => { msg.textContent = '' }, 2000);
+        });
+
+        // --- Customer Portal Rendering ---
+        async function renderCustomerPortal(portalId) {
+            try {
+                // 1. Find the customer by their unique portal ID
+                const customersCollection = collection(db, 'customers');
+                const qCustomer = query(customersCollection, where("uniqueAccessId", "==", portalId));
+                const customerSnapshot = await getDocs(qCustomer);
+
+                if (customerSnapshot.empty) {
+                    document.body.innerHTML = '<div class="text-center p-10"><h1 class="text-2xl font-bold text-red-600">Error</h1><p class="text-lg mt-2">Invalid customer portal link.</p></div>';
+                    loadingScreen.classList.add('hidden');
+                    return;
+                }
+                
+                const customerDoc = customerSnapshot.docs[0];
+                const customer = { id: customerDoc.id, ...customerDoc.data() };
+
+                // 2. Display customer info
+                document.getElementById('portal-customer-name').textContent = customer.name;
+                document.getElementById('portal-customer-location').textContent = customer.location;
+
+                // 3. Find and display jobs for this customer
+                const jobsCollection = collection(db, 'jobs');
+                const qJobs = query(jobsCollection, where("customerId", "==", customer.id));
+                
+                // Use onSnapshot to listen for real-time updates
+                onSnapshot(qJobs, (jobsSnapshot) => {
+                    const jobList = document.getElementById('job-list');
+                    if (jobsSnapshot.empty) {
+                        jobList.innerHTML = '<p class="text-gray-500">No jobs found for this customer.</p>';
+                        return;
+                    }
+
+                    const jobs = [];
+                    jobsSnapshot.forEach(doc => jobs.push({ id: doc.id, ...doc.data() }));
+                    
+                    // Sort jobs by service date, most recent first
+                    jobs.sort((a, b) => b.serviceDate.toMillis() - a.serviceDate.toMillis());
+
+                    jobList.innerHTML = ''; // Clear list
+                    jobs.forEach(job => {
+                        const jobEl = document.createElement('div');
+                        jobEl.className = 'bg-white rounded-xl shadow-lg overflow-hidden';
+                        jobEl.innerHTML = `
+                            <button class="accordion-toggle w-full text-left p-6 flex justify-between items-center hover:bg-gray-50 transition">
+                                <div>
+                                    <p class="text-sm text-gray-500">${job.serviceDate.toDate().toLocaleDateString()}</p>
+                                    <h3 class="text-xl font-bold mt-1">${job.scope}</h3>
+                                </div>
+                                <svg class="w-6 h-6 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </button>
+                            <div class="accordion-content">
+                                <div class="p-6 border-t border-gray-200">
+                                    <h4 class="font-semibold mb-2">Completion Notes:</h4>
+                                    <p class="text-gray-700 whitespace-pre-wrap mb-6">${job.notes || 'No notes provided.'}</p>
+                                    
+                                    ${renderImageSection('Before Shots', job.beforeImages)}
+                                    ${renderImageSection('After Shots', job.afterImages)}
+
+                                    ${job.serviceReport ? `
+                                    <div class="mt-6">
+                                        <h4 class="font-semibold mb-2">Service Report:</h4>
+                                        <a href="${job.serviceReport}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center bg-green-100 text-green-800 font-bold py-2 px-4 rounded-lg hover:bg-green-200 transition">
+                                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                            Download Report
+                                        </a>
+                                    </div>` : ''}
+                                </div>
+                            </div>
+                        `;
+                        jobList.appendChild(jobEl);
+                    });
+                });
+
+                showView('portal');
+
+            } catch (error) {
+                console.error("Error rendering customer portal:", error);
+                document.body.innerHTML = '<div class="text-center p-10"><h1 class="text-2xl font-bold text-red-600">Error</h1><p class="text-lg mt-2">Could not load portal data. Please try again later.</p></div>';
+                loadingScreen.classList.add('hidden');
+            }
+        }
+
+        function renderImageSection(title, images) {
+            if (!images || images.length === 0) return '';
+            return `
+                <div class="mt-6">
+                    <h4 class="font-semibold mb-2">${title}:</h4>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                        ${images.map(url => `
+                            <img src="${url}" alt="${title}" class="lightbox-trigger w-full h-32 object-cover rounded-lg cursor-pointer hover:opacity-80 transition">
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // --- Event Delegation for Dynamic Content ---
+        document.body.addEventListener('click', (e) => {
+            // Accordion toggle for jobs
+            const toggle = e.target.closest('.accordion-toggle');
+            if (toggle) {
+                const content = toggle.nextElementSibling;
+                const icon = toggle.querySelector('svg');
+                if (content.style.maxHeight) {
+                    content.style.maxHeight = null;
+                    icon.classList.remove('rotate-180');
+                } else {
+                    content.style.maxHeight = content.scrollHeight + "px";
+                    icon.classList.add('rotate-180');
+                }
+            }
+            // Image lightbox
+            if (e.target.classList.contains('lightbox-trigger')) {
+                document.getElementById('lightbox-image').src = e.target.src;
+                document.getElementById('lightbox-modal').classList.remove('hidden');
+                document.body.classList.add('modal-open');
+            }
+        });
+
+        // --- Lightbox Close Logic ---
+        document.getElementById('close-lightbox').addEventListener('click', () => {
+            document.getElementById('lightbox-modal').classList.add('hidden');
+            if(!document.getElementById('add-job-modal').classList.contains('hidden') || !document.getElementById('portal-link-modal').classList.contains('hidden')){
+                // do not remove modal-open if another modal is open
+            } else {
+                 document.body.classList.remove('modal-open');
+            }
+        });
+
+        // --- Run Application ---
+        main();
+
+    </script>
+</body>
+</html>
