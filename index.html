@@ -191,12 +191,15 @@
                             <input type="file" id="service-report" class="mt-1 w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100">
                         </div>
                     </div>
-                    <div class="p-6 bg-gray-50 border-t flex justify-end space-x-3">
-                        <button type="button" id="cancel-add-job" class="bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300">Cancel</button>
-                        <button type="submit" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 flex items-center">
-                            <span id="add-job-button-text">Add Job</span>
-                            <div id="add-job-spinner" class="hidden spinner" style="width:20px; height:20px; border-width: 2px; margin-left: 8px;"></div>
-                        </button>
+                    <div class="p-6 bg-gray-50 border-t flex justify-between items-center">
+                        <p id="add-job-error" class="text-red-500 text-sm mr-4"></p>
+                        <div class="flex space-x-3">
+                            <button type="button" id="cancel-add-job" class="bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300">Cancel</button>
+                            <button type="submit" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 flex items-center disabled:opacity-50" disabled>
+                                <span id="add-job-button-text">Add Job</span>
+                                <div id="add-job-spinner" class="hidden spinner" style="width:20px; height:20px; border-width: 2px; margin-left: 8px;"></div>
+                            </button>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -373,6 +376,7 @@
                 e.target.reset(); // Clear the form
             } catch (error) {
                 console.error("Error adding customer: ", error);
+                // This alert is fine for now as it's a simple case.
                 alert("Failed to add customer. Please try again.");
             }
         });
@@ -427,7 +431,10 @@
         });
         
         function openAddJobModal(customerId, customerName) {
-            document.getElementById('add-job-form').reset();
+            const form = document.getElementById('add-job-form');
+            form.reset();
+            form.querySelector('button[type="submit"]').disabled = false;
+            document.getElementById('add-job-error').textContent = '';
             document.getElementById('add-job-customer-id').value = customerId;
             document.getElementById('add-job-customer-name').textContent = customerName;
             document.getElementById('add-job-modal').classList.remove('hidden');
@@ -441,17 +448,33 @@
 
         document.getElementById('add-job-form').addEventListener('submit', async (e) => {
             e.preventDefault();
+            const button = e.target.querySelector('button[type="submit"]');
             const buttonText = document.getElementById('add-job-button-text');
             const spinner = document.getElementById('add-job-spinner');
+            const errorP = document.getElementById('add-job-error');
+            
+            // Reset state
+            errorP.textContent = '';
+            button.disabled = true;
             buttonText.classList.add('hidden');
             spinner.classList.remove('hidden');
 
             const customerId = document.getElementById('add-job-customer-id').value;
+            const serviceDateValue = document.getElementById('job-date').value;
             const beforeImagesFiles = document.getElementById('before-images').files;
             const afterImagesFiles = document.getElementById('after-images').files;
             const serviceReportFile = document.getElementById('service-report').files[0];
 
             try {
+                // Validate date
+                if (!serviceDateValue) {
+                    throw new Error("Service Date is required.");
+                }
+                const serviceDate = new Date(serviceDateValue);
+                if (isNaN(serviceDate.getTime())) {
+                    throw new Error("Invalid Service Date provided.");
+                }
+
                 // 1. Upload files and get URLs
                 const beforeImages = await uploadMultipleFiles(beforeImagesFiles, `jobs/${customerId}/before`);
                 const afterImages = await uploadMultipleFiles(afterImagesFiles, `jobs/${customerId}/after`);
@@ -464,7 +487,7 @@
                 const jobsCollection = collection(db, 'jobs');
                 await addDoc(jobsCollection, {
                     customerId,
-                    serviceDate: Timestamp.fromDate(new Date(document.getElementById('job-date').value)),
+                    serviceDate: Timestamp.fromDate(serviceDate),
                     frequency: document.getElementById('job-frequency').value,
                     scope: document.getElementById('job-scope').value,
                     notes: document.getElementById('job-notes').value,
@@ -474,14 +497,16 @@
                     createdAt: Timestamp.now()
                 });
                 
-                // 3. Close modal and reset state
+                // 3. Close modal on success
                 document.getElementById('add-job-modal').classList.add('hidden');
                 document.body.classList.remove('modal-open');
 
             } catch (error) {
                 console.error("Error adding job:", error);
-                alert("Failed to add job. Check console for details.");
+                errorP.textContent = `Error: ${error.message}`;
             } finally {
+                // Always re-enable the button and hide the spinner
+                button.disabled = false;
                 buttonText.classList.remove('hidden');
                 spinner.classList.add('hidden');
             }
